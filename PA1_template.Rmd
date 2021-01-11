@@ -127,16 +127,23 @@ readAct_wkpt <- actDaily_imp %>%
 
 actDaily_wkptAvg <- readAct_wkpt %>%
         select(
-                date, weekpart, steps
+                date, interval, weekpart, steps
         ) %>%
-        group_by(date, weekpart) %>%
+        group_by(interval, weekpart) %>%
         summarize(
                 day_steps = sum(steps, na.rm = TRUE)
         )
 
-ggplot(data = actDaily_wkptAvg, aes(day_steps)) + 
-        geom_histogram() + 
+# ggplot(data = actDaily_wkptAvg, aes(day_steps)) + 
+#         geom_histogram() + 
+#         facet_grid(rows = vars(weekpart))
+
+ggplot(data = actDaily_wkptAvg, aes(interval, day_steps)) + 
+        geom_line() + 
         facet_grid(rows = vars(weekpart))
+
+# https://github.com/reedwindsnowterns/RepData_PeerAssessment1
+# 69a2e473223c49f496e2edb777b8534b63921e5a
 
 ```
 
