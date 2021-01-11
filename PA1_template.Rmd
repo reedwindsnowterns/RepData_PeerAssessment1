@@ -1,25 +1,142 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
+output:
   html_document:
-    keep_md: true
+    df_print: paged
 ---
 
+```{r setoptions,echo=TRUE,include=FALSE}
+library(datasets); library(knitr); library(tidyverse); library(xtable); library(ggplot2)
+library(grid); library(gridExtra); options(scipen=999)
+options(xtable.comment = FALSE)
+```
+
+```{r computetime,echo=TRUE}
+date <- format(Sys.time(), "%b %d %Y")
+```
+
+# Project 1: Daily Step Movement
+Submitted by Andrew Chang on `r date` for the Johns Hopkins Reproducible Research course
+
+## Introduction
+
+Using two months of data collecting personal step activity at 5 minute intervals a day from a monitoring device, the following study details central tendencies in total daily steps, step activity trends across intervals throughout the day, and differences between step activity within different parts of the week. 
 
 ## Loading and preprocessing the data
 
+The following code was used to read in the data and specify vector types: 
+```{r readdata,echo=TRUE}
+readAct <- read.csv("C:/Users/arkai/Documents/R/projects/DSS05_RepRes/RepData_PeerAssessment1/repdata_data_activity/activity.csv", 
+                    colClasses = c("numeric", "POSIXct", "integer")) 
+```
 
+## Central Tendency
 
-## What is mean total number of steps taken per day?
+To find the central tendencies of the number of steps per day, steps were aggregated by day and the metrics before the mean and median were taken. 
+```{r daysteps,warning=FALSE,message=FALSE,fig.height=3,fig.width=4}
+actDaily <- readAct %>%
+        select(date, steps) %>%
+        group_by(date) %>%
+        summarize(
+                day_steps = sum(steps, na.rm = TRUE)
+        )
 
+actDailyMean <- round(mean(actDaily$day_steps, na.rm = TRUE), 1)
+actDailyMed <- round(median(actDaily$day_steps, na.rm = TRUE), 1)
 
+ggplot(data = actDaily, aes(day_steps)) + 
+        geom_histogram()
+```
 
-## What is the average daily activity pattern?
+The mean and median number of steps taken each day are `r actDailyMean` and `r actDailyMed`, respectively. Through this process, the data revealed a number of missing values as well as zeros. The latter were retained, since the intervals in which they occurred seemed to be adjacent to active ones. The former were removed in the calculation of central tendencies. 
 
+## Daily Step Trends
 
+The steps were then averaged across days for every interval, again removing missing values: 
+```{r intvl,echo=TRUE,warning=FALSE,message=FALSE,fig.height=3,fig.width=4}
+actIntvl <- readAct %>%
+        select(
+                date, steps, interval
+        ) %>%
+        group_by(interval) %>%
+        summarize(
+                avg_intvl_steps = mean(steps, na.rm = TRUE)
+        )
 
-## Imputing missing values
+maxIntvlSteps <- round(max(actIntvl$avg_intvl_steps, na.rm = TRUE), 1)
+maxIntvl <- actIntvl$interval[which.max(actIntvl$avg_intvl_steps)]
 
+ggplot(data = actIntvl, aes(interval, avg_intvl_steps)) + 
+        geom_line()
+```
 
+The interval with the highest average daily step count is `r maxIntvl` with `r maxIntvlSteps` steps. To address the missing values, 
 
-## Are there differences in activity patterns between weekdays and weekends?
+```{r updatemissing,echo=TRUE,warning=FALSE,message=FALSE,fig.height=3,fig.width=4}
+nullStep <- readAct %>%
+        select(
+                steps, date, interval
+        ) %>%
+        filter(is.na(steps))
+avgSteps <- nullStep %>%
+        inner_join(actIntvl, by = "interval") %>%
+        select(
+                date,
+                interval,
+                avg_intvl_steps
+        )
+
+actDaily_imp <- readAct %>%
+        left_join(avgSteps, by = c("date", "interval")) %>%
+        mutate(
+                steps = ifelse(is.na(steps), avg_intvl_steps, steps)
+        )
+
+actDaily_impAvg <- actDaily_imp %>%
+        select(
+                date, steps
+        ) %>%
+        group_by(date) %>%
+        summarize(
+                day_steps = sum(steps, na.rm = TRUE)
+        )
+
+nullStepRows <- nullStep %>%
+        count()
+nullStepCount <- nullStepRows$n
+
+actDailyMean_imp <- round(mean(actDaily_impAvg$day_steps, na.rm = TRUE), 1)
+actDailyMed_imp <- round(median(actDaily_impAvg$day_steps, na.rm = TRUE), 1)
+
+ggplot(data = actDaily_impAvg, aes(day_steps)) + 
+        geom_histogram()
+
+```
+
+After the imputation of missing values, there are `r nullStepCount` missing values in the dataset and the new mean and median are `r actDailyMean_imp` and `r actDailyMed_imp` respectively. The operation removed a number of steps previously skewing the data and caused the two measures of central tendency to converge. 
+
+# Weekly Patterns
+
+Finally, splitting the data by weekday and weekend yielded a panel showing a significantly narrower range of activity during weekends:  
+
+```{r weekend,warning=FALSE,message=FALSE,fig.height=3,fig.width=4}
+
+readAct_wkpt <- actDaily_imp %>%
+        mutate(
+                weekpart = factor(ifelse(weekdays(date) %in% c("Saturday", "Sunday"), "weekend", "weekday"))
+        )
+
+actDaily_wkptAvg <- readAct_wkpt %>%
+        select(
+                date, weekpart, steps
+        ) %>%
+        group_by(date, weekpart) %>%
+        summarize(
+                day_steps = sum(steps, na.rm = TRUE)
+        )
+
+ggplot(data = actDaily_wkptAvg, aes(day_steps)) + 
+        geom_histogram() + 
+        facet_grid(rows = vars(weekpart))
+
+```
+
