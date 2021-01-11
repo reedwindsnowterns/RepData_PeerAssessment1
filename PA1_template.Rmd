@@ -2,6 +2,7 @@
 output:
   html_document:
     df_print: paged
+  pdf_document: default
 ---
 
 ```{r setoptions,echo=TRUE,include=FALSE}
@@ -21,7 +22,7 @@ Submitted by Andrew Chang on `r date` for the Johns Hopkins Reproducible Researc
 
 Using two months of data collecting personal step activity at 5 minute intervals a day from a monitoring device, the following study details central tendencies in total daily steps, step activity trends across intervals throughout the day, and differences between step activity within different parts of the week. 
 
-## Loading and preprocessing the data
+## Loading and Preprocessing the Data
 
 The following code was used to read in the data and specify vector types: 
 ```{r readdata,echo=TRUE}
@@ -69,15 +70,14 @@ ggplot(data = actIntvl, aes(interval, avg_intvl_steps)) +
         geom_line()
 ```
 
-The interval with the highest average daily step count is `r maxIntvl` with `r maxIntvlSteps` steps. To address the missing values, 
+The interval with the highest average daily step count is `r maxIntvl` with `r maxIntvlSteps` steps. 
 
 ```{r updatemissing,echo=TRUE,warning=FALSE,message=FALSE,fig.height=3,fig.width=4}
-nullStep <- readAct %>%
+avgSteps <- readAct %>%
         select(
                 steps, date, interval
         ) %>%
-        filter(is.na(steps))
-avgSteps <- nullStep %>%
+        filter(is.na(steps)) %>%
         inner_join(actIntvl, by = "interval") %>%
         select(
                 date,
@@ -100,7 +100,7 @@ actDaily_impAvg <- actDaily_imp %>%
                 day_steps = sum(steps, na.rm = TRUE)
         )
 
-nullStepRows <- nullStep %>%
+nullStepRows <- avgSteps %>%
         count()
 nullStepCount <- nullStepRows$n
 
@@ -112,7 +112,7 @@ ggplot(data = actDaily_impAvg, aes(day_steps)) +
 
 ```
 
-After the imputation of missing values, there are `r nullStepCount` missing values in the dataset and the new mean and median are `r actDailyMean_imp` and `r actDailyMed_imp` respectively. The operation removed a number of steps previously skewing the data and caused the two measures of central tendency to converge. 
+To address the `r nullStepCount` missing values, a new dataframe was created which collected the average daily steps from the non-null step counts. After the imputation of missing values, the new mean and median are `r actDailyMean_imp` and `r actDailyMed_imp` respectively. The operation removed a number of zero-step averages previously skewing the data and caused the two measures of central tendency to converge. 
 
 # Weekly Patterns
 
